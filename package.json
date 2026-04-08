@@ -1,12 +1,12 @@
 {
-  "name": "react-native-nitro-tts-stt-root",
+  "name": "react-native-nitro-voice-root",
   "private": true,
   "workspaces": [
     "packages/*",
     "example"
   ],
   "scripts": {
-    "specs": "bun --cwd packages/react-native-nitro-tts-stt run specs",
+    "specs": "bun --cwd packages/react-native-nitro-voice run specs",
     "example": "bun --cwd example"
   }
 }

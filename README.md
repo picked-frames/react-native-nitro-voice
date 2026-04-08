@@ -1,4 +1,4 @@
-# react-native-nitro-tts-stt
+# react-native-nitro-voice
 
 Fully offline, on-device **Speech-to-Text** and **Text-to-Speech** for React Native, powered by [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) and [Nitro Modules](https://github.com/mrousavy/nitro).
 
@@ -20,9 +20,7 @@ Fully offline, on-device **Speech-to-Text** and **Text-to-Speech** for React Nat
 ## Installation
 
 ```bash
-npm install react-native-nitro-tts-stt react-native-nitro-modules
-# or
-yarn add react-native-nitro-tts-stt react-native-nitro-modules
+npm install react-native-nitro-voice react-native-nitro-modules
 ```
 
 ### iOS Setup — sherpa-onnx XCFramework
@@ -42,7 +40,7 @@ pod 'sherpa-onnx-ios', '~> 1.10'
 
 ### Android Setup
 
-No manual setup needed. sherpa-onnx is included as a Gradle dependency automatically.
+sherpa-onnx is included as a Gradle dependency automatically.
 
 Add JitPack to your project-level `build.gradle` if not already present:
 
@@ -85,7 +83,7 @@ Single file: `silero_vad.onnx` — download from [silero-vad releases](https://g
 ### Speech-to-Text (VAD-gated Whisper — recommended for conversational AI)
 
 ```typescript
-import { NitroSTT } from 'react-native-nitro-tts-stt';
+import { NitroSTT } from 'react-native-nitro-voice';
 
 const stt = await NitroSTT.create({
   modelDir: '/path/to/whisper-model',
@@ -114,7 +112,7 @@ await stt.destroy();
 ### Speech-to-Text (Streaming — real-time captions)
 
 ```typescript
-import { NitroSTT } from 'react-native-nitro-tts-stt';
+import { NitroSTT } from 'react-native-nitro-voice';
 
 const stt = await NitroSTT.create({
   modelDir: '/path/to/transducer-model',
@@ -143,7 +141,7 @@ stt.feedAudio(pcmArrayBuffer, 44100);
 ### Text-to-Speech
 
 ```typescript
-import { NitroTTS } from 'react-native-nitro-tts-stt';
+import { NitroTTS } from 'react-native-nitro-voice';
 
 const tts = await NitroTTS.create({
   modelDir: '/path/to/kokoro-model',
@@ -170,7 +168,7 @@ await tts.destroy();
 ### VAD Standalone
 
 ```typescript
-import { NitroVAD } from 'react-native-nitro-tts-stt';
+import { NitroVAD } from 'react-native-nitro-voice';
 
 const vad = await NitroVAD.create({
   modelPath: '/path/to/silero_vad.onnx',

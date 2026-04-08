@@ -1,0 +1,32 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": [
+    "nitrovoice"
+  ],
+  "ios": {
+    "iosModuleName": "NitroVoice"
+  },
+  "android": {
+    "androidNamespace": [
+      "nitrovoice"
+    ],
+    "androidCxxLibName": "NitroVoice"
+  },
+  "autolinking": {
+    "STT": {
+      "ios": { "language": "swift", "implementationClassName": "HybridSTT" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridSTT" }
+    },
+    "TTS": {
+      "ios": { "language": "swift", "implementationClassName": "HybridTTS" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridTTS" }
+    },
+    "VAD": {
+      "ios": { "language": "swift", "implementationClassName": "HybridVAD" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridVAD" }
+    }
+  },
+  "ignorePaths": [
+    "**/node_modules"
+  ]
+}
