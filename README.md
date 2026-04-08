@@ -23,20 +23,17 @@ Fully offline, on-device **Speech-to-Text** and **Text-to-Speech** for React Nat
 npm install react-native-nitro-voice react-native-nitro-modules
 ```
 
-### iOS Setup — sherpa-onnx XCFramework
+### iOS Setup
 
-The sherpa-onnx XCFramework is not auto-installed by CocoaPods. You must add it manually:
-
-1. Download the latest `sherpa-onnx-xcframework.tar.bz2` from [sherpa-onnx releases](https://github.com/k2-fsa/sherpa-onnx/releases)
-2. Extract and add `sherpa_onnx.xcframework` to your Xcode project
-3. In Xcode → your app target → **General** → **Frameworks, Libraries, and Embedded Content** → add `sherpa_onnx.xcframework` → set to **Embed & Sign**
-4. Run `pod install` in your app's `ios/` directory
-
-Alternatively, add `sherpa-onnx-ios` to your app's Podfile directly:
+Add `sherpa-onnx-ios` to your app's Podfile:
 
 ```ruby
 pod 'sherpa-onnx-ios', '~> 1.10'
 ```
+
+Then run `pod install` in your app's `ios/` directory.
+
+> **XCFramework alternative:** You can also download `sherpa-onnx-xcframework.tar.bz2` from [sherpa-onnx releases](https://github.com/k2-fsa/sherpa-onnx/releases), extract it, and add `sherpa_onnx.xcframework` to your Xcode project under **General → Frameworks, Libraries, and Embedded Content** (set to **Embed & Sign**).
 
 ### Android Setup
 
@@ -78,6 +75,44 @@ Models are **not bundled** with the library. Download models from the [sherpa-on
 
 Single file: `silero_vad.onnx` — download from [silero-vad releases](https://github.com/snakers4/silero-vad/releases)
 
+### Downloading Models
+
+Example: download a small Whisper model and Silero VAD for quick testing.
+
+```bash
+# Whisper tiny.en (quantized, ~40 MB)
+curl -SL -o sherpa-onnx-whisper-tiny.en.tar.bz2 \
+  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.en.tar.bz2
+tar xjf sherpa-onnx-whisper-tiny.en.tar.bz2
+
+# Silero VAD
+curl -SL -o silero_vad.onnx \
+  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx
+```
+
+Copy the resulting files to a device-accessible directory (e.g. via `react-native-fs` or Expo FileSystem) before passing paths to the library.
+
+## Permissions
+
+### iOS
+
+Add microphone usage description to your `Info.plist`:
+
+```xml
+<key>NSMicrophoneUsageDescription</key>
+<string>Used for speech recognition</string>
+```
+
+### Android
+
+Add the `RECORD_AUDIO` permission to your `AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+```
+
+You must also request the permission at runtime before calling `startMic()` or using the default mic-enabled mode. Use `PermissionsAndroid` from React Native or a library like `react-native-permissions`.
+
 ## Usage
 
 ### Speech-to-Text (VAD-gated Whisper — recommended for conversational AI)
@@ -91,20 +126,16 @@ const stt = await NitroSTT.create({
   language: 'en',
 });
 
-// Start VAD-gated batch recognition
+// Start VAD-gated batch recognition (mic starts automatically)
 await stt.startVADGated('/path/to/silero_vad.onnx', {
   onTranscript: (text) => {
     console.log('Transcript:', text);
   },
 });
 
-// Use built-in mic capture
-await stt.startMic();
-
 // ... user speaks, pauses → clean transcript per utterance
 
-// Stop
-stt.stopMic();
+// Stop (mic stops automatically)
 await stt.stop();
 await stt.destroy();
 ```
@@ -124,14 +155,17 @@ await stt.startStreaming({
   onFinal: (text) => console.log('Final:', text),
 });
 
-await stt.startMic();
+// Mic starts automatically — stop with:
+await stt.stop();
 ```
 
 ### Speech-to-Text (External audio source)
 
 ```typescript
 const stt = await NitroSTT.create(config);
-await stt.startStreaming(callbacks);
+
+// Disable automatic mic — feed audio manually
+await stt.startStreaming(callbacks, { mic: false });
 
 // Feed pre-recorded or streamed audio
 // Accepts any sample rate — resampled to 16kHz internally
@@ -209,12 +243,12 @@ vad.destroy();
 | Method | Description |
 |--------|-------------|
 | `NitroSTT.create(config: STTConfig)` | Factory — creates and initializes STT engine |
-| `startStreaming(callbacks)` | Start streaming recognition with `onPartial`/`onFinal` |
-| `startVADGated(vadModelPath, callbacks)` | Start VAD-gated batch recognition with `onTranscript` |
+| `startStreaming(callbacks, options?)` | Start streaming recognition with `onPartial`/`onFinal`. Starts mic by default. |
+| `startVADGated(vadModelPath, callbacks, options?)` | Start VAD-gated batch recognition with `onTranscript`. Starts mic by default. |
 | `feedAudio(samples, sampleRate)` | Feed external audio (any sample rate, resampled internally) |
-| `startMic()` | Start device microphone capture |
-| `stopMic()` | Stop microphone capture |
-| `stop()` | Stop current recognition session |
+| `startMic()` | Manually start device microphone (for advanced use) |
+| `stopMic()` | Manually stop microphone capture |
+| `stop()` | Stop current recognition session (stops mic if active) |
 | `destroy()` | Release all native resources |
 
 ### `NitroTTS`
@@ -237,6 +271,38 @@ vad.destroy();
 | `processChunk(samples)` | Feed 16kHz mono Float32 PCM audio |
 | `reset()` | Clear accumulated audio state |
 | `destroy()` | Release all native resources |
+
+## Types
+
+```typescript
+type STTModelType = 'whisper' | 'transducer' | 'paraformer' | 'nemo_ctc' | 'sense_voice'
+
+interface STTConfig {
+  modelDir: string       // Path to directory containing model files
+  type: STTModelType
+  language?: string      // e.g. 'en', 'fr', 'zh' — required for Whisper
+}
+
+type TTSModelType = 'vits' | 'kokoro' | 'matcha'
+
+interface TTSConfig {
+  modelDir: string       // Path to directory containing model files
+  type: TTSModelType
+  speakerId?: number     // Speaker index for multi-speaker models (default: 0)
+  speed?: number         // Playback speed multiplier (default: 1.0)
+}
+
+interface VADConfig {
+  modelPath: string      // Path to silero_vad.onnx
+  threshold?: number     // Speech detection threshold (default: 0.5)
+  minSilenceDuration?: number  // Seconds of silence to end speech (default: 0.5)
+  minSpeechDuration?: number   // Minimum seconds to count as speech (default: 0.25)
+}
+
+interface STTOptions {
+  mic?: boolean          // Start microphone automatically (default: true)
+}
+```
 
 ## Example App
 

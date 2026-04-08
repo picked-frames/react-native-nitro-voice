@@ -17,8 +17,14 @@ export interface STTVADCallbacks {
   onTranscript: (text: string) => void
 }
 
+export interface STTOptions {
+  /** Start device microphone automatically (default: true). Set to false when using feedAudio(). */
+  mic?: boolean
+}
+
 export class NitroSTT {
   private hybrid: STT
+  private micActive = false
 
   private constructor(hybrid: STT) {
     this.hybrid = hybrid
@@ -30,15 +36,27 @@ export class NitroSTT {
     return new NitroSTT(hybrid)
   }
 
-  async startStreaming(callbacks: STTStreamingCallbacks): Promise<void> {
-    return this.hybrid.startStreaming(callbacks.onPartial, callbacks.onFinal)
+  async startStreaming(
+    callbacks: STTStreamingCallbacks,
+    options?: STTOptions
+  ): Promise<void> {
+    await this.hybrid.startStreaming(callbacks.onPartial, callbacks.onFinal)
+    if (options?.mic !== false) {
+      await this.hybrid.startMic()
+      this.micActive = true
+    }
   }
 
   async startVADGated(
     vadModelPath: string,
-    callbacks: STTVADCallbacks
+    callbacks: STTVADCallbacks,
+    options?: STTOptions
   ): Promise<void> {
-    return this.hybrid.startVADGated(vadModelPath, callbacks.onTranscript)
+    await this.hybrid.startVADGated(vadModelPath, callbacks.onTranscript)
+    if (options?.mic !== false) {
+      await this.hybrid.startMic()
+      this.micActive = true
+    }
   }
 
   feedAudio(samples: ArrayBuffer, sampleRate: number): void {
@@ -46,18 +64,28 @@ export class NitroSTT {
   }
 
   async startMic(): Promise<void> {
-    return this.hybrid.startMic()
+    await this.hybrid.startMic()
+    this.micActive = true
   }
 
   stopMic(): void {
     this.hybrid.stopMic()
+    this.micActive = false
   }
 
   async stop(): Promise<void> {
+    if (this.micActive) {
+      this.hybrid.stopMic()
+      this.micActive = false
+    }
     return this.hybrid.stop()
   }
 
   async destroy(): Promise<void> {
+    if (this.micActive) {
+      this.hybrid.stopMic()
+      this.micActive = false
+    }
     return this.hybrid.destroy()
   }
 }

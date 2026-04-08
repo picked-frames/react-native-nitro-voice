@@ -3,6 +3,7 @@
     "src"
   ],
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "composite": true,
     "outDir": "lib",
     "rootDir": "src",
