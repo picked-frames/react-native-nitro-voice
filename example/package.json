@@ -17,7 +17,8 @@
     "react-native-nitro-fetch": "^1.1.2",
     "react-native-nitro-modules": "^0.35.3",
     "react-native-nitro-voice": "../packages/react-native-nitro-voice",
-    "react-native-safe-area-context": "^5.5.2"
+    "react-native-safe-area-context": "^5.5.2",
+    "react-native-zip-archive": "^8.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

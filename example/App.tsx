@@ -1,14 +1,6 @@
-/**
- * NitroVoice Example App
- * Demonstrates VAD-gated Whisper STT and Kokoro TTS
- *
- * Models are downloaded on first run using:
- *   - react-native-fs       → large ONNX binaries (stream directly to disk with progress)
- *   - react-native-nitro-fetch → small text files (fetch into memory, write via RNFS)
- */
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
+  KeyboardAvoidingView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -26,54 +18,83 @@ import type { STTConfig, TTSConfig } from 'react-native-nitro-voice';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
 import { fetch as nitroFetch } from 'react-native-nitro-fetch';
+import { unzip } from 'react-native-zip-archive';
 
 // ─── MODEL PATHS ─────────────────────────────────────────────────────────────
 const MODELS_DIR = `${RNFS.DocumentDirectoryPath}/nitro-voice-models`;
 const WHISPER_DIR = `${MODELS_DIR}/whisper`;
+const KOKORO_DIR = `${MODELS_DIR}/kokoro`;
 const VAD_MODEL_PATH = `${MODELS_DIR}/silero_vad.onnx`;
 
 // ─── DOWNLOAD SOURCES ────────────────────────────────────────────────────────
-// Whisper Tiny EN (int8 quantized): encoder ~12.9 MB, decoder ~89.9 MB
-const HF_WHISPER =
-  'https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main';
+const R2 = 'https://pub-28d1fdcf7fc645feb5a92306699262f7.r2.dev';
 
 type ModelFile = {
   label: string;
   url: string;
   dest: string;
-  /** When true, uses react-native-nitro-fetch (small files that fit in memory) */
+  /** Use react-native-nitro-fetch for small text files (fits in memory) */
   useNitroFetch?: boolean;
+  /** After downloading, unzip dest → this directory, then delete the zip */
+  extractTo?: string;
+  /** Path to check in checkModelsReady. Defaults to extractTo ?? dest. */
+  readyCheckPath?: string;
 };
 
 const WHISPER_FILES: ModelFile[] = [
   {
-    label: 'encoder.onnx (12.9 MB)',
-    url: `${HF_WHISPER}/tiny.en-encoder.int8.onnx`,
+    label: 'Whisper encoder.onnx (12.3 MB)',
+    url: `${R2}/whisper-tiny-en-int8-encoder.onnx`,
     dest: `${WHISPER_DIR}/encoder.onnx`,
   },
   {
-    label: 'decoder.onnx (89.9 MB)',
-    url: `${HF_WHISPER}/tiny.en-decoder.int8.onnx`,
+    label: 'Whisper decoder.onnx (85.7 MB)',
+    url: `${R2}/whisper-tiny-en-int8-decoder.onnx`,
     dest: `${WHISPER_DIR}/decoder.onnx`,
   },
   {
-    // Small text file — use react-native-nitro-fetch to fetch into memory
-    label: 'tokens.txt (836 kB)',
-    url: `${HF_WHISPER}/tiny.en-tokens.txt`,
+    label: 'Whisper tokens.txt (816 KB)',
+    url: `${R2}/whisper-tiny-en-int8-tokens.txt`,
     dest: `${WHISPER_DIR}/tokens.txt`,
     useNitroFetch: true,
   },
 ];
 
 const VAD_FILE: ModelFile = {
-  label: 'silero_vad.onnx (~2 MB)',
-  url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx',
+  label: 'Silero VAD (628 KB)',
+  url: `${R2}/silero-vad.onnx`,
   dest: VAD_MODEL_PATH,
 };
 
-const ALL_MODEL_FILES: ModelFile[] = [...WHISPER_FILES, VAD_FILE];
+const KOKORO_FILES: ModelFile[] = [
+  {
+    label: 'Kokoro model.onnx (127.9 MB)',
+    url: `${R2}/kokoro-en-int8-model.onnx`,
+    dest: `${KOKORO_DIR}/model.onnx`,
+  },
+  {
+    label: 'Kokoro voices.bin (5.5 MB)',
+    url: `${R2}/kokoro-en-int8-voices.bin`,
+    dest: `${KOKORO_DIR}/voices.bin`,
+  },
+  {
+    label: 'Kokoro tokens.txt (1 KB)',
+    url: `${R2}/kokoro-en-int8-tokens.txt`,
+    dest: `${KOKORO_DIR}/tokens.txt`,
+    useNitroFetch: true,
+  },
+  {
+    label: 'Kokoro espeak data (8.8 MB)',
+    url: `${R2}/kokoro-en-int8-data.zip`,
+    dest: `${MODELS_DIR}/kokoro-data.zip`,
+    extractTo: KOKORO_DIR,
+    readyCheckPath: `${KOKORO_DIR}/espeak-ng-data`,
+  },
+];
 
-// ─── STATIC CONFIGS (paths are stable after first download) ──────────────────
+const ALL_MODEL_FILES: ModelFile[] = [...WHISPER_FILES, VAD_FILE, ...KOKORO_FILES];
+
+// ─── STATIC CONFIGS ───────────────────────────────────────────────────────────
 const STT_CONFIG: STTConfig = {
   modelDir: WHISPER_DIR,
   type: 'whisper',
@@ -81,12 +102,12 @@ const STT_CONFIG: STTConfig = {
 };
 
 const TTS_CONFIG: TTSConfig = {
-  modelDir: `${MODELS_DIR}/kokoro`,
+  modelDir: KOKORO_DIR,
   type: 'kokoro',
   speed: 1.0,
 };
 
-// ─── DOWNLOAD HELPERS ────────────────────────────────────────────────────────
+// ─── PERMISSIONS ─────────────────────────────────────────────────────────────
 async function requestMicPermission(): Promise<boolean> {
   if (Platform.OS === 'android') {
     const granted = await PermissionsAndroid.request(
@@ -94,22 +115,19 @@ async function requestMicPermission(): Promise<boolean> {
     );
     return granted === PermissionsAndroid.RESULTS.GRANTED;
   }
-  return true; // iOS handles via Info.plist
+  return true;
 }
 
+// ─── MODEL READINESS ─────────────────────────────────────────────────────────
 async function checkModelsReady(): Promise<boolean> {
   for (const file of ALL_MODEL_FILES) {
-    if (!(await RNFS.exists(file.dest))) return false;
+    const pathToCheck = file.readyCheckPath ?? file.extractTo ?? file.dest;
+    if (!(await RNFS.exists(pathToCheck))) return false;
   }
   return true;
 }
 
-/**
- * Download a single model file to disk.
- * - Binary ONNX files: RNFS.downloadFile streams directly to disk (avoids loading
- *   90 MB into JS memory) and provides native progress callbacks.
- * - Small text files: react-native-nitro-fetch reads into memory, RNFS writes to disk.
- */
+// ─── DOWNLOAD ────────────────────────────────────────────────────────────────
 async function downloadModelFile(
   file: ModelFile,
   onProgress: (pct: number) => void
@@ -121,21 +139,29 @@ async function downloadModelFile(
     const text = await res.text();
     await RNFS.writeFile(file.dest, text, 'utf8');
     onProgress(1);
-  } else {
-    const { promise } = RNFS.downloadFile({
-      fromUrl: file.url,
-      toFile: file.dest,
-      background: true,
-      progress: (res: { bytesWritten: number; contentLength: number }) => {
-        if (res.contentLength > 0) onProgress(res.bytesWritten / res.contentLength);
-      },
-    });
-    const result = await promise;
-    if (result.statusCode !== 200) {
-      throw new Error(`HTTP ${result.statusCode} downloading ${file.label}`);
-    }
-    onProgress(1);
+    return;
   }
+
+  const { promise } = RNFS.downloadFile({
+    fromUrl: file.url,
+    toFile: file.dest,
+    background: true,
+    progress: (res: { bytesWritten: number; contentLength: number }) => {
+      if (res.contentLength > 0) onProgress(res.bytesWritten / res.contentLength);
+    },
+  });
+
+  const result = await promise;
+  if (result.statusCode !== 200) {
+    throw new Error(`HTTP ${result.statusCode} downloading ${file.label}`);
+  }
+
+  if (file.extractTo) {
+    await unzip(file.dest, file.extractTo);
+    await RNFS.unlink(file.dest);
+  }
+
+  onProgress(1);
 }
 
 // ─── DOWNLOAD STATE ───────────────────────────────────────────────────────────
@@ -146,7 +172,7 @@ type DownloadPhase =
   | { status: 'downloading'; currentFile: string; overallPct: number }
   | { status: 'error'; message: string };
 
-// ─── APP COMPONENT ───────────────────────────────────────────────────────────
+// ─── APP ─────────────────────────────────────────────────────────────────────
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const colors = isDarkMode
@@ -165,6 +191,7 @@ function App(): React.JSX.Element {
   const startDownload = useCallback(async () => {
     try {
       await RNFS.mkdir(WHISPER_DIR);
+      await RNFS.mkdir(KOKORO_DIR);
 
       for (let i = 0; i < ALL_MODEL_FILES.length; i++) {
         const file = ALL_MODEL_FILES[i];
@@ -189,11 +216,10 @@ function App(): React.JSX.Element {
   }, []);
 
   const retryDownload = useCallback(async () => {
-    // Remove partial files before retrying
     try {
       await RNFS.unlink(MODELS_DIR);
     } catch {
-      // Directory may not exist yet — that's fine
+      // Directory may not exist yet
     }
     setDownload({ status: 'needed' });
   }, []);
@@ -209,6 +235,8 @@ function App(): React.JSX.Element {
   const [ttsStatus, setTtsStatus] = useState<'idle' | 'speaking' | 'initializing'>('idle');
   const [ttsText, setTtsText] = useState('Hello! This is a test of on-device text to speech.');
   const [ttsInfo, setTtsInfo] = useState('');
+  const [speakerId, setSpeakerId] = useState(0);
+  const [numSpeakers, setNumSpeakers] = useState(0);
   const ttsRef = useRef<NitroTTS | null>(null);
 
   // ─── STT ──────────────────────────────────────────────────────────────────
@@ -259,19 +287,18 @@ function App(): React.JSX.Element {
       setTtsStatus('initializing');
 
       if (!ttsRef.current) {
-        const tts = await NitroTTS.create(TTS_CONFIG);
+        const tts = await NitroTTS.create({ ...TTS_CONFIG, speakerId });
         ttsRef.current = tts;
-        setTtsInfo(`Sample Rate: ${tts.sampleRate}Hz | Speakers: ${tts.numSpeakers}`);
+        setNumSpeakers(tts.numSpeakers);
+        setTtsInfo(`${tts.sampleRate}Hz · ${tts.numSpeakers} voices`);
       }
 
       setTtsStatus('speaking');
 
       await ttsRef.current.speak(ttsText, {
-        onAudioChunk: (_samples: ArrayBuffer, sampleRate: number) => {
-          setTtsInfo(`Generating... (${sampleRate}Hz)`);
-        },
+        onAudioChunk: () => {},
         onComplete: () => {
-          setTtsInfo('Generation complete');
+          setTtsInfo(prev => prev.replace(/^Generating…\s*·\s*/, ''));
         },
       });
 
@@ -280,7 +307,7 @@ function App(): React.JSX.Element {
       setTtsStatus('idle');
       setTtsInfo(`Error: ${error}`);
     }
-  }, [ttsText]);
+  }, [ttsText, speakerId]);
 
   const stopTTS = useCallback(async () => {
     try {
@@ -290,11 +317,23 @@ function App(): React.JSX.Element {
     }
   }, []);
 
+  const changeSpeaker = useCallback(async (delta: number) => {
+    const next = speakerId + delta;
+    if (ttsRef.current) {
+      await ttsRef.current.destroy();
+      ttsRef.current = null;
+      setNumSpeakers(0);
+      setTtsInfo('');
+    }
+    setSpeakerId(next);
+  }, [speakerId]);
+
   // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView edges={['bottom', 'top']} style={[styles.container, { backgroundColor: colors.bg }]}>
+    <SafeAreaView edges={['bottom', 'top', 'left', 'right']} style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: colors.text }]}>
           NitroVoice Example
         </Text>
@@ -317,7 +356,7 @@ function App(): React.JSX.Element {
           {download.status === 'needed' && (
             <>
               <Text style={[styles.modelNote, { color: colors.muted }]}>
-                Downloads Whisper Tiny EN (int8) + Silero VAD — ~103 MB total.
+                Downloads Whisper Tiny EN (int8), Silero VAD, and Kokoro TTS (int8) — ~242 MB total.
               </Text>
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: colors.button }]}
@@ -349,7 +388,7 @@ function App(): React.JSX.Element {
 
           {download.status === 'ready' && (
             <Text style={[styles.statusText, { color: '#27ae60' }]}>
-              ✓ Models ready — STT enabled below
+              ✓ Models ready
             </Text>
           )}
 
@@ -419,13 +458,6 @@ function App(): React.JSX.Element {
             Text-to-Speech (Kokoro)
           </Text>
 
-          <Text style={[styles.modelNote, { color: colors.muted }]}>
-            Requires a Kokoro model placed at:{'\n'}
-            <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 11 }}>
-              {TTS_CONFIG.modelDir}
-            </Text>
-          </Text>
-
           <TextInput
             style={[styles.input, { color: colors.text, borderColor: colors.accent }]}
             value={ttsText}
@@ -435,16 +467,40 @@ function App(): React.JSX.Element {
             multiline
           />
 
+          {/* Voice picker */}
+          <View style={[styles.row, { justifyContent: 'center', marginBottom: 12 }]}>
+            <TouchableOpacity
+              style={[styles.stepBtn, { backgroundColor: colors.accent, opacity: ttsStatus === 'idle' ? 1 : 0.4 }]}
+              onPress={() => changeSpeaker(-1)}
+              disabled={ttsStatus !== 'idle' || speakerId <= 0}
+            >
+              <Text style={styles.stepBtnText}>{'‹'}</Text>
+            </TouchableOpacity>
+            <Text style={[styles.statusText, { color: colors.text, marginHorizontal: 12, marginBottom: 0 }]}>
+              {numSpeakers > 0 ? `Voice ${speakerId + 1} / ${numSpeakers}` : `Voice ${speakerId + 1}`}
+            </Text>
+            <TouchableOpacity
+              style={[styles.stepBtn, { backgroundColor: colors.accent, opacity: ttsStatus === 'idle' ? 1 : 0.4 }]}
+              onPress={() => changeSpeaker(1)}
+              disabled={ttsStatus !== 'idle' || (numSpeakers > 0 && speakerId >= numSpeakers - 1)}
+            >
+              <Text style={styles.stepBtnText}>{'›'}</Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
             style={[
               styles.button,
-              { backgroundColor: ttsStatus === 'speaking' ? '#c0392b' : colors.button },
+              {
+                backgroundColor: ttsStatus === 'speaking' ? '#c0392b' : colors.button,
+                opacity: modelsReady ? 1 : 0.4,
+              },
             ]}
             onPress={ttsStatus === 'speaking' ? stopTTS : startTTS}
-            disabled={ttsStatus === 'initializing'}
+            disabled={!modelsReady || ttsStatus === 'initializing'}
           >
             <Text style={styles.buttonText}>
-              {ttsStatus === 'idle' && 'Speak'}
+              {ttsStatus === 'idle' && (modelsReady ? 'Speak' : 'Models required')}
               {ttsStatus === 'initializing' && 'Initializing…'}
               {ttsStatus === 'speaking' && 'Stop'}
             </Text>
@@ -457,17 +513,19 @@ function App(): React.JSX.Element {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
   },
   scrollContent: {
     padding: 20,
     paddingBottom: 40,
+    flexGrow: 1,
   },
   title: {
     fontSize: 28,
@@ -501,6 +559,18 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  stepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBtnText: {
+    color: '#ffffff',
+    fontSize: 22,
+    lineHeight: 26,
   },
   row: {
     flexDirection: 'row',
