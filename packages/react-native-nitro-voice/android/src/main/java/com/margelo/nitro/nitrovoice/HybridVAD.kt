@@ -27,7 +27,7 @@ class HybridVAD : HybridVADSpec() {
   override fun initialize(config: VADConfig): Promise<Unit> {
     return Promise.async {
       val vadConfig = VadModelConfig(
-        sileroVad = SileroVadModelConfig(
+        sileroVadModelConfig = SileroVadModelConfig(
           model = config.modelPath,
           threshold = config.threshold?.toFloat() ?: 0.5f,
           minSilenceDuration = config.minSilenceDuration?.toFloat() ?: 0.5f,
@@ -40,7 +40,7 @@ class HybridVAD : HybridVADSpec() {
         debug = false
       )
 
-      vad = Vad(vadConfig, bufferSizeInSeconds = 30.0f)
+      vad = Vad(null, vadConfig)
         ?: throw IllegalStateException("Failed to create VAD. Check model file at: ${config.modelPath}")
     }
   }
@@ -67,11 +67,7 @@ class HybridVAD : HybridVADSpec() {
     processingThread.execute {
       val vadInstance = vad ?: return@execute
 
-      val byteBuffer = ByteBuffer.wrap(
-        ByteArray(samples.size).also {
-          samples.getBuffer(ByteBuffer.wrap(it))
-        }
-      ).order(ByteOrder.nativeOrder())
+      val byteBuffer = samples.getBuffer(false).order(ByteOrder.nativeOrder())
       val floatBuffer = byteBuffer.asFloatBuffer()
       val floats = FloatArray(floatBuffer.remaining())
       floatBuffer.get(floats)
@@ -94,9 +90,7 @@ class HybridVAD : HybridVADSpec() {
         if (segmentSamples.isNotEmpty()) {
           val byteSize = segmentSamples.size * 4 // Float = 4 bytes
           val buffer = ArrayBuffer.allocate(byteSize)
-          val segmentByteBuffer = ByteBuffer.allocate(byteSize).order(ByteOrder.nativeOrder())
-          segmentByteBuffer.asFloatBuffer().put(segmentSamples)
-          buffer.getBuffer(segmentByteBuffer)
+          buffer.getBuffer(false).order(ByteOrder.nativeOrder()).asFloatBuffer().put(segmentSamples)
           onSpeechEndCallback?.invoke(buffer)
         }
 

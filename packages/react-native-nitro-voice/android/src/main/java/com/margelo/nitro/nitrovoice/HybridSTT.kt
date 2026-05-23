@@ -13,13 +13,15 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import com.k2fsa.sherpa.onnx.OnlineParaformerModelConfig
-import com.k2fsa.sherpa.onnx.OnlineNemoCtcModelConfig
+import com.k2fsa.sherpa.onnx.OnlineNeMoCtcModelConfig
+import com.k2fsa.sherpa.onnx.EndpointConfig
+import com.k2fsa.sherpa.onnx.EndpointRule
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineTransducerModelConfig
 import com.k2fsa.sherpa.onnx.OfflineParaformerModelConfig
-import com.k2fsa.sherpa.onnx.OfflineNemoCtcModelConfig
+import com.k2fsa.sherpa.onnx.OfflineNemoEncDecCtcModelConfig
 import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
 import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
 import com.k2fsa.sherpa.onnx.Vad
@@ -87,9 +89,9 @@ class HybridSTT : HybridSTTSpec() {
             decoder = "$modelDir/decoder.onnx"
           )
         } else OnlineParaformerModelConfig(),
-        nemoCtc = if (config.type == STTModelType.NEMO_CTC) {
-          OnlineNemoCtcModelConfig(model = "$modelDir/model.onnx")
-        } else OnlineNemoCtcModelConfig(),
+        neMoCtc = if (config.type == STTModelType.NEMO_CTC) {
+          OnlineNeMoCtcModelConfig(model = "$modelDir/model.onnx")
+        } else OnlineNeMoCtcModelConfig(),
         tokens = "$modelDir/tokens.txt",
         numThreads = 2,
         provider = "cpu",
@@ -110,12 +112,14 @@ class HybridSTT : HybridSTTSpec() {
         modelConfig = onlineModelConfig,
         decodingMethod = "greedy_search",
         enableEndpoint = true,
-        rule1MinTrailingSilence = 2.4f,
-        rule2MinTrailingSilence = 1.2f,
-        rule3MinUtteranceLength = 20.0f
+        endpointConfig = EndpointConfig(
+          rule1 = EndpointRule(mustContainNonSilence = false, minTrailingSilence = 2.4f, minUtteranceLength = 0f),
+          rule2 = EndpointRule(mustContainNonSilence = true, minTrailingSilence = 1.2f, minUtteranceLength = 0f),
+          rule3 = EndpointRule(mustContainNonSilence = false, minTrailingSilence = 0f, minUtteranceLength = 20.0f)
+        )
       )
 
-      onlineRecognizer = OnlineRecognizer(recognizerConfig)
+      onlineRecognizer = OnlineRecognizer(null, recognizerConfig)
     }
   }
 
@@ -136,7 +140,7 @@ class HybridSTT : HybridSTTSpec() {
 
       // Create VAD
       val vadConfig = VadModelConfig(
-        sileroVad = SileroVadModelConfig(
+        sileroVadModelConfig = SileroVadModelConfig(
           model = vadModelPath,
           threshold = 0.5f,
           minSilenceDuration = 0.5f,
@@ -148,7 +152,7 @@ class HybridSTT : HybridSTTSpec() {
         provider = "cpu",
         debug = false
       )
-      vad = Vad(vadConfig, bufferSizeInSeconds = 30.0f)
+      vad = Vad(null, vadConfig)
 
       // Create offline recognizer
       val offlineModelConfig = OfflineModelConfig(
@@ -170,9 +174,9 @@ class HybridSTT : HybridSTTSpec() {
         paraformer = if (config.type == STTModelType.PARAFORMER) {
           OfflineParaformerModelConfig(model = "$modelDir/model.onnx")
         } else OfflineParaformerModelConfig(),
-        nemoCtc = if (config.type == STTModelType.NEMO_CTC) {
-          OfflineNemoCtcModelConfig(model = "$modelDir/model.onnx")
-        } else OfflineNemoCtcModelConfig(),
+        nemo = if (config.type == STTModelType.NEMO_CTC) {
+          OfflineNemoEncDecCtcModelConfig(model = "$modelDir/model.onnx")
+        } else OfflineNemoEncDecCtcModelConfig(),
         senseVoice = if (config.type == STTModelType.SENSE_VOICE) {
           OfflineSenseVoiceModelConfig(
             model = "$modelDir/model.onnx",
@@ -191,7 +195,7 @@ class HybridSTT : HybridSTTSpec() {
         decodingMethod = "greedy_search"
       )
 
-      offlineRecognizer = OfflineRecognizer(offlineConfig)
+      offlineRecognizer = OfflineRecognizer(null, offlineConfig)
     }
   }
 
@@ -201,11 +205,7 @@ class HybridSTT : HybridSTTSpec() {
     if (!isRunning) return
 
     processingThread.execute {
-      val byteBuffer = ByteBuffer.wrap(
-        ByteArray(samples.size).also {
-          samples.getBuffer(ByteBuffer.wrap(it))
-        }
-      ).order(ByteOrder.nativeOrder())
+      val byteBuffer = samples.getBuffer(false).order(ByteOrder.nativeOrder())
       val floatBuffer = byteBuffer.asFloatBuffer()
       val floats = FloatArray(floatBuffer.remaining())
       floatBuffer.get(floats)

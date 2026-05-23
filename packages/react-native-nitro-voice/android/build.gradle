@@ -141,6 +141,6 @@ dependencies {
   implementation project(":react-native-nitro-modules")
 
   // sherpa-onnx for on-device speech inference
-  implementation "com.github.k2-fsa:sherpa-onnx:v1.10.33"
+  implementation "com.github.k2-fsa:sherpa-onnx:v1.13.0"
 }
 

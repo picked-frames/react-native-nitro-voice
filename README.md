@@ -5,7 +5,7 @@ Fully offline, on-device **Speech-to-Text** and **Text-to-Speech** for React Nat
 - All inference runs on-device — no network calls, no cloud dependency
 - Models are not bundled — consumers download and manage their own model files
 - New Architecture only (Nitro Modules)
-- iOS 15.1+, Android API 29+
+- iOS 15.5+, Android API 29+
 
 ## Features
 
@@ -319,13 +319,13 @@ To run:
 
 ```bash
 # Install deps
-bun install
+npm install
 
-# Download models to the expected paths (see MODEL_DIR in App.tsx)
+cd example
 
-# Run
-bun example ios
-bun example android
+npm run ios
+# or
+npm run android
 ```
 
 ## License
