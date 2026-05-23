@@ -1,6 +1,9 @@
 import Foundation
 import NitroModules
 import AVFoundation
+import OSLog
+
+private let sttLog = Logger(subsystem: "com.nitrovoice", category: "STT")
 
 class HybridSTT: HybridSTTSpec {
 
@@ -22,10 +25,18 @@ class HybridSTT: HybridSTTSpec {
   // Audio processing queue
   private let processingQueue = DispatchQueue(label: "com.nitrovoice.stt.processing", qos: .userInteractive)
 
+  // Accumulates resampled 16kHz samples until we have a full VAD window (512 samples)
+  private var vadBuffer: [Float] = []
+
+  // Throttle audio-chunk logs to once per second
+  private var lastAudioLogTime: Date = .distantPast
+  private var chunksSinceLastLog = 0
+
   // MARK: - Initialize
 
   func initialize(config: STTConfig) throws -> Promise<Void> {
     return Promise.async {
+      sttLog.info("initialize — modelDir: \(config.modelDir), type: \(String(describing: config.type))")
       self.modelConfig = config
     }
   }
@@ -45,7 +56,6 @@ class HybridSTT: HybridSTTSpec {
       self.onFinalCallback = onFinal
       self.isRunning = true
 
-      // Build online recognizer config
       var recognizerConfig = SherpaOnnxOnlineRecognizerConfig()
       recognizerConfig.feat_config.sample_rate = 16000
       recognizerConfig.feat_config.feature_dim = 80
@@ -59,8 +69,7 @@ class HybridSTT: HybridSTTSpec {
       recognizerConfig.model_config.debug = 0
 
       let modelDir = config.modelDir
-      let tokensPath = "\(modelDir)/tokens.txt"
-      recognizerConfig.model_config.tokens = Self.toCString(tokensPath)
+      recognizerConfig.model_config.tokens = Self.toCString("\(modelDir)/tokens.txt")
 
       switch config.type {
       case .transducer:
@@ -70,15 +79,15 @@ class HybridSTT: HybridSTTSpec {
       case .paraformer:
         recognizerConfig.model_config.paraformer.encoder = Self.toCString("\(modelDir)/encoder.onnx")
         recognizerConfig.model_config.paraformer.decoder = Self.toCString("\(modelDir)/decoder.onnx")
-      case .nemoCTC:
+      case .nemoCtc:
         recognizerConfig.model_config.nemo_ctc.model = Self.toCString("\(modelDir)/model.onnx")
       default:
-        throw NSError(domain: "STT", code: 2, userInfo: [NSLocalizedDescriptionKey: "Model type '\(config.type)' is not supported for streaming mode. Use transducer, paraformer, or nemo_ctc."])
+        throw NSError(domain: "STT", code: 2, userInfo: [NSLocalizedDescriptionKey: "Model type '\(config.type)' is not supported for streaming mode."])
       }
 
       self.onlineRecognizer = SherpaOnnxCreateOnlineRecognizer(&recognizerConfig)
       guard let recognizer = self.onlineRecognizer else {
-        throw NSError(domain: "STT", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to create online recognizer. Check model files."])
+        throw NSError(domain: "STT", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to create online recognizer."])
       }
 
       self.onlineStream = SherpaOnnxCreateOnlineStream(recognizer)
@@ -99,6 +108,8 @@ class HybridSTT: HybridSTTSpec {
         throw NSError(domain: "STT", code: 1, userInfo: [NSLocalizedDescriptionKey: "Not initialized. Call initialize() first."])
       }
 
+      sttLog.info("startVADGated — vadModelPath: \(vadModelPath)")
+
       self.onTranscriptCallback = onTranscript
       self.isRunning = true
 
@@ -116,8 +127,9 @@ class HybridSTT: HybridSTTSpec {
 
       self.vad = SherpaOnnxCreateVoiceActivityDetector(&vadConfig, 30)
       guard self.vad != nil else {
-        throw NSError(domain: "STT", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to create VAD. Check model file at: \(vadModelPath)"])
+        throw NSError(domain: "STT", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to create VAD at: \(vadModelPath)"])
       }
+      sttLog.info("VAD created OK")
 
       // Create offline recognizer
       var offlineConfig = SherpaOnnxOfflineRecognizerConfig()
@@ -145,7 +157,7 @@ class HybridSTT: HybridSTTSpec {
         offlineConfig.model_config.transducer.joiner = Self.toCString("\(modelDir)/joiner.onnx")
       case .paraformer:
         offlineConfig.model_config.paraformer.model = Self.toCString("\(modelDir)/model.onnx")
-      case .nemoCTC:
+      case .nemoCtc:
         offlineConfig.model_config.nemo_ctc.model = Self.toCString("\(modelDir)/model.onnx")
       case .senseVoice:
         offlineConfig.model_config.sense_voice.model = Self.toCString("\(modelDir)/model.onnx")
@@ -156,8 +168,9 @@ class HybridSTT: HybridSTTSpec {
 
       self.offlineRecognizer = SherpaOnnxCreateOfflineRecognizer(&offlineConfig)
       guard self.offlineRecognizer != nil else {
-        throw NSError(domain: "STT", code: 6, userInfo: [NSLocalizedDescriptionKey: "Failed to create offline recognizer. Check model files."])
+        throw NSError(domain: "STT", code: 6, userInfo: [NSLocalizedDescriptionKey: "Failed to create offline recognizer. Check model files in: \(modelDir)"])
       }
+      sttLog.info("offline recognizer created OK")
     }
   }
 
@@ -169,9 +182,8 @@ class HybridSTT: HybridSTTSpec {
 
       let data = samples.data
       let count = samples.size / MemoryLayout<Float>.size
-      let floatPtr = data.assumingMemoryBound(to: Float.self)
+      let floatPtr = UnsafeRawPointer(data).assumingMemoryBound(to: Float.self)
 
-      // Resample to 16kHz if needed
       let targetRate: Double = 16000
       if abs(sampleRate - targetRate) < 1.0 {
         self.processAudioChunk(floatPtr, count: count)
@@ -193,6 +205,7 @@ class HybridSTT: HybridSTTSpec {
 
   func startMic() throws -> Promise<Void> {
     return Promise.async {
+      sttLog.info("startMic — creating AudioCapture")
       let capture = AudioCapture()
       capture.onAudioChunk = { [weak self] samples, count in
         self?.processingQueue.async {
@@ -201,10 +214,12 @@ class HybridSTT: HybridSTTSpec {
       }
       try capture.start()
       self.audioCapture = capture
+      sttLog.info("AudioCapture started OK")
     }
   }
 
   func stopMic() throws {
+    sttLog.debug("stopMic")
     audioCapture?.stop()
     audioCapture = nil
   }
@@ -213,12 +228,14 @@ class HybridSTT: HybridSTTSpec {
 
   func stop() throws -> Promise<Void> {
     return Promise.async {
+      sttLog.debug("stop")
       self.isRunning = false
       self.onPartialCallback = nil
       self.onFinalCallback = nil
       self.onTranscriptCallback = nil
+      self.vadBuffer.removeAll()
 
-      if let stream = self.onlineStream, let recognizer = self.onlineRecognizer {
+      if let stream = self.onlineStream {
         SherpaOnnxDestroyOnlineStream(stream)
         self.onlineStream = nil
       }
@@ -227,7 +244,9 @@ class HybridSTT: HybridSTTSpec {
 
   func destroy() throws -> Promise<Void> {
     return Promise.async {
+      sttLog.debug("destroy")
       self.isRunning = false
+      self.vadBuffer.removeAll()
       try? self.stopMic()
 
       if let stream = self.onlineStream {
@@ -254,10 +273,21 @@ class HybridSTT: HybridSTTSpec {
   private func processAudioChunk(_ samples: UnsafePointer<Float>, count: Int) {
     guard isRunning else { return }
 
+    // Log once per second so we can confirm audio is flowing
+    chunksSinceLastLog += 1
+    let now = Date()
+    if now.timeIntervalSince(lastAudioLogTime) >= 1.0 {
+      sttLog.info("audio flowing — \(self.chunksSinceLastLog) chunks/s, count=\(count), vadBuf=\(self.vadBuffer.count)")
+      chunksSinceLastLog = 0
+      lastAudioLogTime = now
+    }
+
     if let stream = onlineStream, let recognizer = onlineRecognizer {
       processStreamingChunk(samples, count: count, stream: stream, recognizer: recognizer)
-    } else if let vad = vad {
+    } else if vad != nil {
       processVADChunk(samples, count: count)
+    } else {
+      sttLog.warning("processAudioChunk called but no stream or VAD configured")
     }
   }
 
@@ -281,7 +311,6 @@ class HybridSTT: HybridSTTSpec {
           self?.onPartialCallback?(text)
         }
       }
-
       if SherpaOnnxOnlineStreamIsEndpoint(recognizer, stream) == 1 {
         if !text.isEmpty {
           DispatchQueue.main.async { [weak self] in
@@ -290,7 +319,6 @@ class HybridSTT: HybridSTTSpec {
         }
         SherpaOnnxOnlineStreamReset(recognizer, stream)
       }
-
       SherpaOnnxDestroyOnlineRecognizerResult(result)
     }
   }
@@ -298,17 +326,22 @@ class HybridSTT: HybridSTTSpec {
   private func processVADChunk(_ samples: UnsafePointer<Float>, count: Int) {
     guard let vad = vad else { return }
 
-    // Feed audio in window-sized chunks (512 samples for Silero VAD)
-    let windowSize = 512
-    var offset = 0
-    while offset + windowSize <= count {
-      SherpaOnnxVoiceActivityDetectorAcceptWaveform(vad, samples.advanced(by: offset), Int32(windowSize))
-      offset += windowSize
+    // Accumulate incoming samples — AudioCapture delivers ~341 frames after resampling
+    // from the device's 48 kHz native rate, which is less than Silero VAD's required 512.
+    vadBuffer.append(contentsOf: UnsafeBufferPointer(start: samples, count: count))
 
-      // Check for completed speech segments
+    let windowSize = 512
+    while vadBuffer.count >= windowSize {
+      vadBuffer.withUnsafeBufferPointer { buf in
+        SherpaOnnxVoiceActivityDetectorAcceptWaveform(vad, buf.baseAddress!, Int32(windowSize))
+      }
+      vadBuffer.removeFirst(windowSize)
+
       while SherpaOnnxVoiceActivityDetectorEmpty(vad) == 0 {
+        sttLog.info("VAD: speech segment ready")
         let segment = SherpaOnnxVoiceActivityDetectorFront(vad)
         if let segment = segment {
+          sttLog.info("VAD segment: \(segment.pointee.n) samples")
           decodeOfflineSegment(samples: segment.pointee.samples, count: Int(segment.pointee.n))
           SherpaOnnxDestroySpeechSegment(segment)
         }
@@ -318,10 +351,18 @@ class HybridSTT: HybridSTTSpec {
   }
 
   private func decodeOfflineSegment(samples: UnsafePointer<Float>?, count: Int) {
-    guard let recognizer = offlineRecognizer, let samples = samples, count > 0 else { return }
+    guard let recognizer = offlineRecognizer, let samples = samples, count > 0 else {
+      sttLog.warning("decodeOfflineSegment skipped — recognizer=\(self.offlineRecognizer == nil ? "nil" : "ok"), count=\(count)")
+      return
+    }
+
+    sttLog.info("decodeOfflineSegment — \(count) samples (\(String(format: "%.2f", Double(count) / 16000.0))s)")
 
     let stream = SherpaOnnxCreateOfflineStream(recognizer)
-    guard let stream = stream else { return }
+    guard let stream = stream else {
+      sttLog.error("decodeOfflineSegment — failed to create offline stream")
+      return
+    }
 
     SherpaOnnxAcceptWaveformOffline(stream, 16000, samples, Int32(count))
     SherpaOnnxDecodeOfflineStream(recognizer, stream)
@@ -329,12 +370,15 @@ class HybridSTT: HybridSTTSpec {
     let result = SherpaOnnxGetOfflineStreamResult(stream)
     if let result = result {
       let text = String(cString: result.pointee.text).trimmingCharacters(in: .whitespacesAndNewlines)
+      sttLog.info("transcript: '\(text)'")
       if !text.isEmpty {
         DispatchQueue.main.async { [weak self] in
           self?.onTranscriptCallback?(text)
         }
       }
       SherpaOnnxDestroyOfflineRecognizerResult(result)
+    } else {
+      sttLog.warning("decodeOfflineSegment — no result returned from recognizer")
     }
 
     SherpaOnnxDestroyOfflineStream(stream)

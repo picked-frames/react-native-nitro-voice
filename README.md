@@ -25,15 +25,20 @@ npm install react-native-nitro-voice react-native-nitro-modules
 
 ### iOS Setup
 
-Add `sherpa-onnx-ios` to your app's Podfile:
+For local development in this repo, place the sherpa-onnx iOS XCFrameworks at:
 
-```ruby
-pod 'sherpa-onnx-ios', '~> 1.10'
+```text
+packages/react-native-nitro-voice/vendor/sherpa-onnx-ios/
 ```
 
 Then run `pod install` in your app's `ios/` directory.
 
-> **XCFramework alternative:** You can also download `sherpa-onnx-xcframework.tar.bz2` from [sherpa-onnx releases](https://github.com/k2-fsa/sherpa-onnx/releases), extract it, and add `sherpa_onnx.xcframework` to your Xcode project under **General → Frameworks, Libraries, and Embedded Content** (set to **Embed & Sign**).
+The example app expects these two directories from the upstream prebuilt iOS release:
+
+- `sherpa-onnx.xcframework`
+- `onnxruntime.xcframework`
+
+If you are integrating this outside the repo, you can also add the XCFrameworks manually in Xcode.
 
 ### Android Setup
 

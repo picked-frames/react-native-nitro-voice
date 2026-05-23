@@ -10,7 +10,7 @@ class AudioCapture {
 
   func start() throws {
     let session = AVAudioSession.sharedInstance()
-    try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetooth])
+    try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
     try session.setActive(true)
 
     let engine = AVAudioEngine()

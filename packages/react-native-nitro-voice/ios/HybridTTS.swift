@@ -110,7 +110,7 @@ class HybridTTS: HybridTTSSpec {
         tts,
         text,
         &genConfig,
-        { samplesPtr, count, arg in
+        { samplesPtr, count, _, arg in
           guard let arg = arg else { return 0 }
           let ctx = Unmanaged<TTSCallbackContext>.fromOpaque(arg).takeUnretainedValue()
 

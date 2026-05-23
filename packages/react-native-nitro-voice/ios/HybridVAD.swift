@@ -58,7 +58,7 @@ class HybridVAD: HybridVADSpec {
 
       let data = samples.data
       let count = samples.size / MemoryLayout<Float>.size
-      let floatPtr = data.assumingMemoryBound(to: Float.self)
+      let floatPtr = UnsafeRawPointer(data).assumingMemoryBound(to: Float.self)
 
       // Feed audio in window-sized chunks (512 samples for Silero VAD)
       let windowSize = 512
