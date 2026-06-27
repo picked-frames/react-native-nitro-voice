@@ -314,6 +314,12 @@ The `example/` directory contains a demo app showing:
 - VAD-gated Whisper STT with microphone input
 - Kokoro TTS with text input
 
+The example app downloads its models from an R2 bucket. Before running, copy `example/.env.sample` to `example/.env` and set the bucket base URL:
+
+```
+R2_BASE_URL=https://pub-28d1fdcf7fc645feb5a92306699262f7 DOT r2 DOT dev
+```
+
 To run:
 
 ```bash

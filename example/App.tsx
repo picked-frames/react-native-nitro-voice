@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
 import { fetch as nitroFetch } from 'react-native-nitro-fetch';
 import { unzip } from 'react-native-zip-archive';
+import { R2_BASE_URL } from '@env';
 
 // ─── MODEL PATHS ─────────────────────────────────────────────────────────────
 const MODELS_DIR = `${RNFS.DocumentDirectoryPath}/nitro-voice-models`;
@@ -27,7 +28,7 @@ const KOKORO_DIR = `${MODELS_DIR}/kokoro`;
 const VAD_MODEL_PATH = `${MODELS_DIR}/silero_vad.onnx`;
 
 // ─── DOWNLOAD SOURCES ────────────────────────────────────────────────────────
-const R2 = 'https://pub-28d1fdcf7fc645feb5a92306699262f7.r2.dev';
+const R2 = R2_BASE_URL;
 
 type ModelFile = {
   label: string;
