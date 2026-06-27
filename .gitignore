@@ -79,6 +79,8 @@ lib/
 
 # local iOS sherpa-onnx frameworks for development
 packages/react-native-nitro-voice/vendor/sherpa-onnx-ios/
+onnxruntime.xcframework
+sherpa-onnx.xcframework
 
 # caches
 .eslintcache

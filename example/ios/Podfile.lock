@@ -74,6 +74,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+    - sherpa-onnx-ios (= 1.13.0)
     - Yoga
   - RCTDeprecation (0.85.0)
   - RCTRequired (0.85.0)
@@ -1913,6 +1914,7 @@ PODS:
     - ReactNativeDependencies
     - SSZipArchive (~> 2.5.5)
     - Yoga
+  - sherpa-onnx-ios (1.13.0)
   - SSZipArchive (2.5.5)
   - Yoga (0.0.0)
 
@@ -1996,6 +1998,7 @@ DEPENDENCIES:
   - ReactNativeDependencies (from `../../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - RNFS (from `../../node_modules/react-native-fs`)
   - RNZipArchive (from `../../node_modules/react-native-zip-archive`)
+  - sherpa-onnx-ios (from `../../packages/react-native-nitro-voice`)
   - Yoga (from `../../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2160,6 +2163,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/react-native-fs"
   RNZipArchive:
     :path: "../../node_modules/react-native-zip-archive"
+  sherpa-onnx-ios:
+    :path: "../../packages/react-native-nitro-voice"
   Yoga:
     :path: "../../node_modules/react-native/ReactCommon/yoga"
 
@@ -2168,7 +2173,7 @@ SPEC CHECKSUMS:
   hermes-engine: ed440ee73658f21d5d6d47e6936f4f0f869cc7a9
   NitroFetch: cb31e8575d0230eb845c8d8cba7342d1acb47b89
   NitroModules: d9e08ab81a7b5f6d16acbbc6ea6091e45ce34a9f
-  NitroVoice: 2d1a6e43706da7f8267ba8b9d893e4d396abd898
+  NitroVoice: f07a8ea7c4e5fbf4514bc8a1e530a44a82e4379e
   RCTDeprecation: 3bb167081b134461cfeb875ff7ae1945f8635257
   RCTRequired: 74839f55d5058a133a0bc4569b0afec750957f64
   RCTSwiftUI: 87a316382f3eab4dd13d2a0d0fd2adcce917361a
@@ -2242,9 +2247,10 @@ SPEC CHECKSUMS:
   ReactNativeDependencies: 1a9c8930fe9ce246e5f0dd628a63199749200004
   RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   RNZipArchive: d2e50460c579f1cc099dda7f67d8c0c4eb3414f8
+  sherpa-onnx-ios: 9ec656cc363405de8aa0991698e6283c014a5d7a
   SSZipArchive: c69881e8ac5521f0e622291387add5f60f30f3c4
   Yoga: e83c3121d079541e69f3c5c623faaaf933fb5812
 
-PODFILE CHECKSUM: fb6fcfe551bc407450f41b9ba35e4fdc38b582a4
+PODFILE CHECKSUM: 9b5fac397bcf7f1884c602ac69b2ff181bdb8572
 
 COCOAPODS: 1.16.2

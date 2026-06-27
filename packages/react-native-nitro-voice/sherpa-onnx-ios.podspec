@@ -22,6 +22,20 @@ Pod::Spec.new do |s|
 
     ROOT_DIR="$(pwd)"
     SHERPA_PATH="$(find "$ROOT_DIR" -type d -name sherpa-onnx.xcframework | head -n 1)"
+
+    # Not present — download the release tarball ourselves.
+    # This happens when the pod is referenced via :path (e.g. from node_modules)
+    # rather than via the :http source, in which case CocoaPods would have
+    # extracted the tarball for us before running this script.
+    if [ -z "$SHERPA_PATH" ]; then
+      TARBALL="$ROOT_DIR/sherpa-onnx-v1.13.0-ios.tar.bz2"
+      echo "Downloading sherpa-onnx v1.13.0 iOS frameworks (~370 MB)..."
+      curl -L -o "$TARBALL" "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.0/sherpa-onnx-v1.13.0-ios.tar.bz2"
+      tar xjf "$TARBALL" -C "$ROOT_DIR"
+      rm -f "$TARBALL"
+      SHERPA_PATH="$(find "$ROOT_DIR" -type d -name sherpa-onnx.xcframework | head -n 1)"
+    fi
+
     if [ -z "$SHERPA_PATH" ]; then
       echo "Could not find sherpa-onnx.xcframework in the sherpa-onnx archive."
       exit 1

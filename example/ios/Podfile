@@ -17,6 +17,9 @@ end
 target 'NitroVoiceExample' do
   config = use_native_modules!
 
+  # Consumers: pod 'sherpa-onnx-ios', :path => '../node_modules/react-native-nitro-voice'
+  pod 'sherpa-onnx-ios', :path => '../../packages/react-native-nitro-voice'
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

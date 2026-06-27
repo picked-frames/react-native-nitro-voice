@@ -1,7 +1,7 @@
 {
   "name": "react-native-nitro-voice",
   "version": "0.0.1",
-  "description": "Fully offline, on-device Speech-to-Text and Text-to-Speech for React Native using sherpa-onnx and Nitro Modules",
+  "description": "Offline, on-device Speech-to-Text and Text-to-Speech for React Native using sherpa-onnx and Nitro Modules",
   "main": "lib/index",
   "module": "lib/index",
   "types": "lib/index.d.ts",
@@ -17,16 +17,15 @@
     "android/fix-prefab.gradle",
     "android/CMakeLists.txt",
     "android/src",
-    "cpp",
     "ios/**/*.h",
     "ios/**/*.m",
     "ios/**/*.mm",
     "ios/**/*.cpp",
     "ios/**/*.swift",
-    "app.plugin.js",
     "nitro.json",
     "*.podspec",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -38,18 +37,28 @@
   },
   "keywords": [
     "react-native",
-    "nitro"
+    "nitro",
+    "nitro-modules",
+    "tts",
+    "stt",
+    "speech-to-text",
+    "text-to-speech",
+    "offline",
+    "on-device",
+    "vad",
+    "voice-activity-detection",
+    "sherpa-onnx"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/user/react-native-nitro-voice.git"
+    "url": "git+https://github.com/picked-frames/react-native-nitro-voice.git"
   },
-  "author": "",
+  "author": "Bryce McMath (https://github.com/picked-frames)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/user/react-native-nitro-voice/issues"
+    "url": "https://github.com/picked-frames/react-native-nitro-voice/issues"
   },
-  "homepage": "https://github.com/mrousavy/nitro#readme",
+  "homepage": "https://github.com/picked-frames/react-native-nitro-voice#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
