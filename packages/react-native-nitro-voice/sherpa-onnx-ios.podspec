@@ -66,10 +66,10 @@ Pod::Spec.new do |s|
   s.public_header_files = header_files
   s.pod_target_xcconfig = {
     'HEADER_SEARCH_PATHS' => '"${PODS_TARGET_SRCROOT}/sherpa-onnx.xcframework/ios-arm64/Headers" "${PODS_TARGET_SRCROOT}/sherpa-onnx.xcframework/ios-arm64_x86_64-simulator/Headers" "${PODS_TARGET_SRCROOT}/onnxruntime.xcframework/Headers"',
-    'OTHER_LDFLAGS' => '$(inherited) -lc++'
+    'OTHER_LDFLAGS' => '$(inherited)'
   }
   s.user_target_xcconfig = {
     'HEADER_SEARCH_PATHS' => '"${PODS_ROOT}/sherpa-onnx-ios/sherpa-onnx.xcframework/ios-arm64/Headers" "${PODS_ROOT}/sherpa-onnx-ios/sherpa-onnx.xcframework/ios-arm64_x86_64-simulator/Headers" "${PODS_ROOT}/sherpa-onnx-ios/onnxruntime.xcframework/Headers"',
-    'OTHER_LDFLAGS' => '$(inherited) -lc++'
+    'OTHER_LDFLAGS' => '$(inherited)'
   }
 end

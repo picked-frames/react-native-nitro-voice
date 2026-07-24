@@ -15,7 +15,7 @@ namespace margelo::nitro::nitrovoice {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ enum "TTSModelType" and the the Kotlin enum "TTSModelType".
+   * The C++ JNI bridge between the C++ enum "TTSModelType" and the Kotlin enum "TTSModelType".
    */
   struct JTTSModelType final: public jni::JavaClass<JTTSModelType> {
   public:

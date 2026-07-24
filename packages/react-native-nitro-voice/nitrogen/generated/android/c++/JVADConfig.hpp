@@ -18,7 +18,7 @@ namespace margelo::nitro::nitrovoice {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "VADConfig" and the the Kotlin data class "VADConfig".
+   * The C++ JNI bridge between the C++ struct "VADConfig" and the Kotlin data class "VADConfig".
    */
   struct JVADConfig final: public jni::JavaClass<JVADConfig> {
   public:

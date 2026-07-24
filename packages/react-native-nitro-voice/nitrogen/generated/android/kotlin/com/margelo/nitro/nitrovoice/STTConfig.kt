@@ -9,6 +9,7 @@ package com.margelo.nitro.nitrovoice
 
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
+import java.util.Objects
 
 
 /**
@@ -28,6 +29,22 @@ data class STTConfig(
   val language: String?
 ) {
   /* primary constructor */
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is STTConfig) return false
+    return Objects.deepEquals(this.modelDir, other.modelDir)
+      && Objects.deepEquals(this.type, other.type)
+      && Objects.deepEquals(this.language, other.language)
+  }
+
+  override fun hashCode(): Int {
+    return arrayOf<Any?>(
+      modelDir,
+      type,
+      language
+    ).contentDeepHashCode()
+  }
 
   companion object {
     /**

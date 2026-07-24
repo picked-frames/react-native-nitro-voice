@@ -122,7 +122,7 @@ class HybridTTS: HybridTTSSpec {
   private func setupAudioEngine(sampleRate: Double) {
     do {
       let session = AVAudioSession.sharedInstance()
-      try session.setCategory(.playback, mode: .default, options: [.defaultToSpeaker])
+      try session.setCategory(.playback, mode: .default)
       try session.setActive(true)
     } catch {
       ttsLog.error("Audio session setup failed: \(error)")

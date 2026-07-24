@@ -1,4 +1,30 @@
 {
-  "name": "NitroVoiceExample",
-  "displayName": "NitroVoiceExample"
+  "expo": {
+    "name": "NitroVoice Example",
+    "slug": "nitro-voice-example",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "nitrovoiceexample",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.pickedframes.nitrovoiceexample"
+    },
+    "android": {
+      "package": "com.pickedframes.nitrovoiceexample"
+    },
+    "plugins": [
+      [
+        "react-native-nitro-voice",
+        {
+          "microphonePermission": "NitroVoice Example uses the microphone to transcribe your speech on-device."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": { "minSdkVersion": 29 }
+        }
+      ]
+    ]
+  }
 }

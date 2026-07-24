@@ -20,7 +20,7 @@ namespace margelo::nitro::nitrovoice {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "STTConfig" and the the Kotlin data class "STTConfig".
+   * The C++ JNI bridge between the C++ struct "STTConfig" and the Kotlin data class "STTConfig".
    */
   struct JSTTConfig final: public jni::JavaClass<JSTTConfig> {
   public:
