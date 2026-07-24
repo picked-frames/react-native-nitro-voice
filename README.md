@@ -1,5 +1,9 @@
 # react-native-nitro-voice
 
+[![npm version](https://img.shields.io/npm/v/react-native-nitro-voice)](https://www.npmjs.com/package/react-native-nitro-voice)
+[![npm downloads](https://img.shields.io/npm/dm/react-native-nitro-voice)](https://www.npmjs.com/package/react-native-nitro-voice)
+[![license](https://img.shields.io/npm/l/react-native-nitro-voice)](https://www.npmjs.com/package/react-native-nitro-voice)
+
 Fully offline, on-device **Speech-to-Text** and **Text-to-Speech** for React Native, powered by [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) and [Nitro Modules](https://github.com/mrousavy/nitro).
 
 - All inference runs on-device — no network calls, no cloud dependency
