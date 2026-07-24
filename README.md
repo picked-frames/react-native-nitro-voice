@@ -5,7 +5,7 @@ Fully offline, on-device **Speech-to-Text** and **Text-to-Speech** for React Nat
 - All inference runs on-device — no network calls, no cloud dependency
 - Models are not bundled — consumers download and manage their own model files
 - New Architecture only (Nitro Modules)
-- iOS 15.5+, Android API 29+
+- iOS 16.4+, Android API 29+
 
 ## Features
 
@@ -108,7 +108,7 @@ The plugin:
 - adds the JitPack Maven repository (Android),
 - adds the microphone permission — `NSMicrophoneUsageDescription` (iOS; message configurable via the `microphonePermission` prop) and `RECORD_AUDIO` (Android).
 
-The plugin intentionally does **not** set the iOS deployment target or Android `minSdkVersion`. This library needs **iOS 15.5+** and **Android API 29+**. In practice your Expo SDK already enforces a higher iOS floor (Expo SDK 57 requires **iOS 16.4**, which covers this library's minimum automatically), so you usually only need to raise Android's `minSdkVersion` via `expo-build-properties`:
+The plugin intentionally does **not** set the iOS deployment target or Android `minSdkVersion`. This library targets **iOS 16.4+** and **Android API 29+** — the React Native 0.86 / Expo SDK 57 baseline. Expo already enforces the iOS floor for you, so in practice you only need to raise Android's `minSdkVersion` via `expo-build-properties`:
 
 ```json
 [

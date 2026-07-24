@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.license      = package["license"]
   s.authors      = package["author"]
 
-  s.platforms    = { :ios => '15.5' }
+  s.platforms    = { :ios => '16.4' }
   s.source       = { :git => "https://github.com/user/react-native-nitro-voice.git", :tag => "#{s.version}" }
 
   s.source_files = [
