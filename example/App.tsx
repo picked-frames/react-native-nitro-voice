@@ -19,7 +19,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
 import { fetch as nitroFetch } from 'react-native-nitro-fetch';
 import { unzip } from 'react-native-zip-archive';
-import { R2_BASE_URL } from '@env';
 
 // ─── MODEL PATHS ─────────────────────────────────────────────────────────────
 const MODELS_DIR = `${RNFS.DocumentDirectoryPath}/nitro-voice-models`;
@@ -28,7 +27,7 @@ const KOKORO_DIR = `${MODELS_DIR}/kokoro`;
 const VAD_MODEL_PATH = `${MODELS_DIR}/silero_vad.onnx`;
 
 // ─── DOWNLOAD SOURCES ────────────────────────────────────────────────────────
-const R2 = R2_BASE_URL;
+const R2 = process.env.EXPO_PUBLIC_R2_BASE_URL;
 
 type ModelFile = {
   label: string;
@@ -234,7 +233,7 @@ function App(): React.JSX.Element {
 
   // ─── TTS state ────────────────────────────────────────────────────────────
   const [ttsStatus, setTtsStatus] = useState<'idle' | 'speaking' | 'initializing'>('idle');
-  const [ttsText, setTtsText] = useState('Hello! This is a test of on-device text to speech.');
+  const [ttsText, setTtsText] = useState('Hello, this is a test of on-device text to speech.');
   const [ttsInfo, setTtsInfo] = useState('');
   const [speakerId, setSpeakerId] = useState(0);
   const [numSpeakers, setNumSpeakers] = useState(0);

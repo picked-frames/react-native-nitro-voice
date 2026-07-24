@@ -5,7 +5,7 @@ import OSLog
 
 private let sttLog = Logger(subsystem: "com.nitrovoice", category: "STT")
 
-class HybridSTT: HybridSTTSpec {
+class HybridSTT: HybridSTTSpec, @unchecked Sendable {
 
   // MARK: - State
 
@@ -208,8 +208,14 @@ class HybridSTT: HybridSTTSpec {
       sttLog.info("startMic — creating AudioCapture")
       let capture = AudioCapture()
       capture.onAudioChunk = { [weak self] samples, count in
+        // `samples` points into a transient audio buffer that is only valid
+        // for the duration of this synchronous callback. Copy it into a
+        // Sendable array before hopping onto the processing queue.
+        let chunk = Array(UnsafeBufferPointer(start: samples, count: count))
         self?.processingQueue.async {
-          self?.processAudioChunk(samples, count: count)
+          chunk.withUnsafeBufferPointer { buf in
+            self?.processAudioChunk(buf.baseAddress!, count: chunk.count)
+          }
         }
       }
       try capture.start()

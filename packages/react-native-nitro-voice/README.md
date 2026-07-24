@@ -81,22 +81,49 @@ Single file: `silero_vad.onnx` — download from [silero-vad releases](https://g
 
 ### Downloading Models
 
-Example: download a small Whisper model and Silero VAD for quick testing.
+Because models aren't bundled, your app fetches them at runtime, stores them in a writable directory on-device (e.g. `RNFS.DocumentDirectoryPath`), and passes those local paths to `NitroSTT.create`, `NitroTTS.create`, and `startVADGated`. There's no prescribed transport — obtain the model files from the [sherpa-onnx model zoo](https://k2-fsa.github.io/sherpa-onnx/), host them wherever you like, and download them on first launch.
 
-```bash
-# Whisper tiny.en (quantized, ~40 MB)
-curl -SL -o sherpa-onnx-whisper-tiny.en.tar.bz2 \
-  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.en.tar.bz2
-tar xjf sherpa-onnx-whisper-tiny.en.tar.bz2
+The [example app](https://github.com/picked-frames/react-native-nitro-voice/blob/main/example/App.tsx) is a complete, working reference for this. On launch it checks whether the files already exist with `RNFS.exists`; if not, it downloads each one — streaming large `.onnx` files to disk with [`react-native-fs`](https://github.com/itinance/react-native-fs)' `downloadFile` (with a progress callback), pulling tiny text files like `tokens.txt` via a lightweight fetch, and unzipping any archives (such as Kokoro's espeak data) with [`react-native-zip-archive`](https://github.com/mockingbot/react-native-zip-archive) — then points the STT/TTS/VAD configs at the resulting directories. It serves the files from a Cloudflare R2 bucket (base URL injected via `example/.env`), and surfaces per-file progress plus a retry path in the UI. See the `MODELS_DIR` constants and the `downloadModelFile` / `checkModelsReady` helpers there for the specifics.
 
-# Silero VAD
-curl -SL -o silero_vad.onnx \
-  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx
+## Expo (config plugin)
+
+If you use Expo with CNG (`expo prebuild`), you don't need the manual iOS Podfile, Android Gradle, or permission edits — this package ships an Expo config plugin that applies them for you. Add it to your `app.json`:
+
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "react-native-nitro-voice",
+        { "microphonePermission": "Used for on-device speech recognition. Your audio never leaves your device." }
+      ]
+    ]
+  }
+}
 ```
 
-Copy the resulting files to a device-accessible directory (e.g. via `react-native-fs` or Expo FileSystem) before passing paths to the library.
+The plugin:
+
+- adds the `sherpa-onnx-ios` CocoaPod to your Podfile (iOS),
+- adds the JitPack Maven repository (Android),
+- adds the microphone permission — `NSMicrophoneUsageDescription` (iOS; message configurable via the `microphonePermission` prop) and `RECORD_AUDIO` (Android).
+
+The plugin intentionally does **not** set the iOS deployment target or Android `minSdkVersion`. This library needs **iOS 15.5+** and **Android API 29+**. In practice your Expo SDK already enforces a higher iOS floor (Expo SDK 57 requires **iOS 16.4**, which covers this library's minimum automatically), so you usually only need to raise Android's `minSdkVersion` via `expo-build-properties`:
+
+```json
+[
+  "expo-build-properties",
+  {
+    "android": { "minSdkVersion": 29 }
+  }
+]
+```
+
+Then run `npx expo prebuild --clean` and build a dev client. The first iOS `pod install` downloads the sherpa-onnx frameworks (~370 MB).
 
 ## Permissions
+
+> Skip this section if you use the Expo config plugin above — it adds these for you.
 
 ### iOS
 

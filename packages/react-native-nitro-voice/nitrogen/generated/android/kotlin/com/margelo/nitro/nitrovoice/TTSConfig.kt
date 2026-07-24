@@ -9,6 +9,7 @@ package com.margelo.nitro.nitrovoice
 
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
+import java.util.Objects
 
 
 /**
@@ -31,6 +32,24 @@ data class TTSConfig(
   val speed: Double?
 ) {
   /* primary constructor */
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is TTSConfig) return false
+    return Objects.deepEquals(this.modelDir, other.modelDir)
+      && Objects.deepEquals(this.type, other.type)
+      && Objects.deepEquals(this.speakerId, other.speakerId)
+      && Objects.deepEquals(this.speed, other.speed)
+  }
+
+  override fun hashCode(): Int {
+    return arrayOf<Any?>(
+      modelDir,
+      type,
+      speakerId,
+      speed
+    ).contentDeepHashCode()
+  }
 
   companion object {
     /**

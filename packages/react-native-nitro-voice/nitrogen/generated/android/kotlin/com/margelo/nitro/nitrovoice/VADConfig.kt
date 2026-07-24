@@ -9,6 +9,7 @@ package com.margelo.nitro.nitrovoice
 
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
+import java.util.Objects
 
 
 /**
@@ -31,6 +32,24 @@ data class VADConfig(
   val minSpeechDuration: Double?
 ) {
   /* primary constructor */
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is VADConfig) return false
+    return Objects.deepEquals(this.modelPath, other.modelPath)
+      && Objects.deepEquals(this.threshold, other.threshold)
+      && Objects.deepEquals(this.minSilenceDuration, other.minSilenceDuration)
+      && Objects.deepEquals(this.minSpeechDuration, other.minSpeechDuration)
+  }
+
+  override fun hashCode(): Int {
+    return arrayOf<Any?>(
+      modelPath,
+      threshold,
+      minSilenceDuration,
+      minSpeechDuration
+    ).contentDeepHashCode()
+  }
 
   companion object {
     /**
