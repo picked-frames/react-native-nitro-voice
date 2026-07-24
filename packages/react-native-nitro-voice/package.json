@@ -1,6 +1,6 @@
 {
   "name": "react-native-nitro-voice",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Offline, on-device Speech-to-Text and Text-to-Speech for React Native using sherpa-onnx and Nitro Modules",
   "main": "lib/index",
   "module": "lib/index",

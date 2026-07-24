@@ -1,5 +1,11 @@
 # react-native-nitro-voice
 
+## 0.1.1
+
+### Patch Changes
+
+- [#4](https://github.com/picked-frames/react-native-nitro-voice/pull/4) [`c599184`](https://github.com/picked-frames/react-native-nitro-voice/commit/c59918453aad83bdaa5212a1b9a62382f8f36b6e) Thanks [@picked-frames](https://github.com/picked-frames)! - fix weird react types version
+
 ## 0.1.0
 
 ### Minor Changes
